@@ -1,0 +1,36 @@
+name: CI
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'apps/processIncomplete/**' # replace the path to the folder
+  workflow_dispatch:
+
+jobs:
+  test-build-deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.DEV_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: eu-west-2
+      NAME_OF_LAMBDA: process_incomplete # replace the name of function
+      PATH_TO_LAMBDA: apps/processIncomplete # replace the path to the folder
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: '[1/4] - Install Dependencies and build'
+        run: cd $PATH_TO_LAMBDA && yarn && yarn build
+
+      - name: '[2/4] - Zip the Contents'
+        run: cd $PATH_TO_LAMBDA && zip -r -x=*.git* -x=*.github* serac-$NAME_OF_LAMBDA.zip *
+
+      - name: '[3/4] - Copy .zip to AWS S3 Bucket'
+        run: cd $PATH_TO_LAMBDA && aws s3 cp serac-$NAME_OF_LAMBDA.zip s3://${{ secrets.DEV_S3_BUCKET }}/ --debug
+
+      - name: '[4/4] - Update the scraper-trigger_dev lambda'
+        run: aws lambda update-function-code --function-name $NAME_OF_LAMBDA --region $AWS_DEFAULT_REGION --s3-bucket ${{ secrets.DEV_S3_BUCKET }} --s3-key serac-$NAME_OF_LAMBDA.zip
