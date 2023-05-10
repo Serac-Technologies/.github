@@ -1,0 +1,7 @@
+{
+  "name": "Lambda CI Workflow",
+  "description": "CI workflow template for AWS Lambda deployment.",
+  "iconName": "example-icon",
+  "categories": ["TypeScript","AWS","lambda function"],
+  "filePatterns": ["package.json$"]
+}
